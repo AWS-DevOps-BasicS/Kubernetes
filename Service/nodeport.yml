@@ -7,6 +7,6 @@ spec:
   type: NodePort
   ports: 
     - name: nodejsport
-      nodePort: 36000
+      nodePort: 32000
       targetPort: 3000
       port: 31000
