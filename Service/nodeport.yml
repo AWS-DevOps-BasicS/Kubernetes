@@ -10,3 +10,5 @@ spec:
       nodePort: 32000
       targetPort: 3000
       port: 31000
+  selector:
+    app: nodejs-app

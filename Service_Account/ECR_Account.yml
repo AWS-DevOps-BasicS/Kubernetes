@@ -1,0 +1,7 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ecr-account
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::211125375984:role/ECRPushPolicy
