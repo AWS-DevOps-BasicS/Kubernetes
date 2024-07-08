@@ -87,10 +87,87 @@ kubeadm join 172.31.87.114:6443 --token 1ak0ki.0cya6pxkgmvh5yd9 --discovery-toke
   ![preview](images/k8s6.png)
 
 ### Step-6:  Install a Pod Network Add-on(on master)
-* You need a pod network add-on to enable communication between pods. Install fannel
+* You need a pod network add-on to enable communication between pods. Install CNI plugin
 ```bash
-kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
+kubectl apply -f https://reweave.azurewebsites.net/k8s/v1.30/net.yaml
 ```
-* Before and after install fannel in master node
+* Before and after install CNI plugin in master node
   
   ![preview](images/k8s7.png)
+
+## Pod
+### Create a pod with an image which is present in ecr private repository 
+**Prerequisites:**
+1. Create ECR repository and push the image into that repository.[Refer Here](https://github.com/AWS-DevOps-BasicS/AWS-Task/tree/main/Docker_Image_ECR)
+2. Install aws cli on master node.
+3. Attach role with **`AmazonEC2ContainerRegistryFullAccess`** to the master node. 
+#### Step-1: Create Docker Configuration File
+* First, ensure you have Docker configured to authenticate with ECR in master node. You can do this by running:
+```bash
+aws ecr get-login-password --region <your-region> | docker login --username AWS --password-stdin <your-account-id>.dkr.ecr.<your-region>.amazonaws.com
+```
+* This command logs you into Docker with your AWS credentials and sets up the necessary credentials in ~/.docker/config.json.
+
+![preview](images/k8s8.png)
+
+#### Step-2: Create Kubernetes Secret: 
+* Kubernetes uses secrets to store sensitive data like Docker credentials. You can create a Kubernetes Secret named ecr-secret that holds your Docker configuration:
+```bash
+kubectl create secret generic ecr-secret \
+    --from-file=.dockerconfigjson=$HOME/.docker/config.json \
+    --type=kubernetes.io/dockerconfigjson
+```
+ 
+ ![preview](images/k8s9.png)
+
+#### Step-3: Create Pod Manifest: 
+* Now, create a Kubernetes Pod manifest (pod.yaml) that references the secret and specifies the image from your ECR repository:
+```yml
+---
+apiVersion: v1
+kind: Pod
+metadata: 
+  name: nodejs-pod
+  labels:
+    app: nodejs-app
+spec: 
+  serviceAccountName: ecr-account
+  containers:
+    - image: 211125375984.dkr.ecr.us-east-1.amazonaws.com/nodejs_project:1.0
+      ports: 
+        - containerPort: 3000
+          name: nodejs-port
+          protocol: TCP
+      name: nodejs-container
+  imagePullSecrets:
+    - name: ecr-secret
+```
+
+#### Step-4: Deploy the Pod: 
+* Apply the Pod manifest to your Kubernetes cluster: `kubectl apply -f pod.yml`
+  
+  ![preview](images/k8s10.png)
+
+#### Step-5: To expose the application:
+* Create k8s service manifest, to expose the application we have to give type as nodeport.
+```yml
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nodejs-service
+spec:
+  type: NodePort
+  ports: 
+    - name: nodejsport
+      nodePort: 32000
+      targetPort: 3000
+      port: 31000
+  selector:
+    app: nodejs-app
+``` 
+* Now select the public ip of any node in the cluster and check.
+  
+  ![preview](images/k8s11.png)
+  ![preview](images/k8s12.png)
+  ![preview](images/k8s13.png)
